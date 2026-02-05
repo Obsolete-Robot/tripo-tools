@@ -32,6 +32,8 @@ OUTPUT_FORMATS = ["glb", "fbx", "obj", "stl", "usdz"]
 
 SUPPORTED_IMAGES = "Images (*.png *.jpg *.jpeg *.webp *.bmp);;All Files (*)"
 
+API_BASE = "https://api.tripo3d.ai/v2/openapi"
+
 
 # ============================================================
 # Worker signals (thread-safe GUI updates)
@@ -398,6 +400,44 @@ class TripoGUI(QMainWindow):
                 return
             mode = "text"
             payload = {"prompt": prompt}
+
+        # Build confirmation details
+        if mode == "single":
+            task_body = {
+                "type": "image_to_model",
+                "file": {"type": "image_token", "file_token": f"<upload:{os.path.basename(payload['image'])}>"},
+            }
+            input_summary = f"Image: {payload['image']}"
+        elif mode == "multiview":
+            task_body = {
+                "type": "multiview_to_model",
+                "files": [{"type": "image_token", "file_token": f"<upload:{os.path.basename(p)}>"} for p in payload["images"]],
+            }
+            input_summary = f"Images ({len(payload['images'])}):\n" + "\n".join(f"  • {p}" for p in payload["images"])
+        elif mode == "text":
+            task_body = {
+                "type": "text_to_model",
+                "prompt": payload["prompt"],
+            }
+            input_summary = f"Prompt: {payload['prompt']}"
+
+        confirm_text = (
+            f"Ready to send to Tripo AI?\n\n"
+            f"{input_summary}\n\n"
+            f"Output: {output}\n"
+            f"Format: {fmt}\n\n"
+            f"--- API Request ---\n"
+            f"POST {API_BASE}/task\n"
+            f"{json.dumps(task_body, indent=2)}"
+        )
+
+        reply = QMessageBox.question(
+            self, "Confirm Generation", confirm_text,
+            QMessageBox.Yes | QMessageBox.Cancel,
+            QMessageBox.Yes,
+        )
+        if reply != QMessageBox.Yes:
+            return
 
         # Go
         self.log_output.clear()
