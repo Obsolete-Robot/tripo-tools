@@ -176,7 +176,7 @@ class TripoGUI(QMainWindow):
 
         multi_desc = QLabel(
             "Add 2-6 turnaround images from different angles.\n"
-            "Best results: front, back, left, right, top views."
+            "Best results: even spacing around the object at roughly eye level."
         )
         multi_desc.setStyleSheet("color: #888; font-size: 11px;")
         multi_desc.setWordWrap(True)
@@ -186,7 +186,7 @@ class TripoGUI(QMainWindow):
         self.multi_images = []
         grid = QGridLayout()
         grid.setSpacing(8)
-        view_labels = ["Front", "Back", "Left", "Right", "Top", "Extra"]
+        view_labels = ["Front", "Front-Right", "Back-Right", "Back", "Back-Left", "Front-Left"]
 
         for i, label in enumerate(view_labels):
             img = ImageDropLabel(f"{label}\n(click/drop)")
