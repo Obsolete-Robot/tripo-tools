@@ -441,7 +441,7 @@ class TripoGUI(QMainWindow):
 
         # Go
         self.log_output.clear()
-        self._log(f"Mode: {mode}\nOutput: {output}\nFormat: {fmt}\n\n")
+        self._on_log(f"Mode: {mode}\nOutput: {output}\nFormat: {fmt}\n\n")
 
         self.generate_btn.setEnabled(False)
         self.progress_bar.setValue(0)
