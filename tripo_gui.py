@@ -14,6 +14,9 @@ import os
 import json
 import threading
 from pathlib import Path
+
+# Ensure tripo_generate is importable regardless of working directory
+sys.path.insert(0, str(Path(__file__).parent))
 from PySide6.QtCore import Qt, QSettings, Signal, QObject
 from PySide6.QtGui import QTextCursor, QPixmap, QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (
@@ -493,6 +496,8 @@ class TripoGUI(QMainWindow):
                 time.sleep(3)
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.signals.finished.emit(False, str(e))
 
     # --------------------------------------------------------- Callbacks
