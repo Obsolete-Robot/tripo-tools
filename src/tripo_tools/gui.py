@@ -25,7 +25,7 @@ except ImportError:
     print("Or install with GUI support: pip install tripo-tools[gui]")
     sys.exit(1)
 
-from .client import TripoClient
+from .client import TripoClient, MODEL_VERSIONS, GEOMETRY_QUALITIES
 
 OUTPUT_FORMATS = ["glb", "fbx", "obj", "stl", "usdz"]
 SUPPORTED_IMAGES = "Images (*.png *.jpg *.jpeg *.webp *.bmp);;All Files (*)"
@@ -227,6 +227,19 @@ class TripoGUI(QMainWindow):
         self.format_combo.addItems(OUTPUT_FORMATS)
         options_row.addWidget(self.format_combo)
         options_row.addSpacing(20)
+        options_row.addWidget(QLabel("Model:"))
+        self.model_combo = QComboBox()
+        self.model_combo.addItems(MODEL_VERSIONS)
+        self.model_combo.currentTextChanged.connect(self._on_model_changed)
+        options_row.addWidget(self.model_combo)
+        options_row.addSpacing(20)
+        options_row.addWidget(QLabel("Quality:"))
+        self.quality_combo = QComboBox()
+        self.quality_combo.addItems(GEOMETRY_QUALITIES)
+        self.quality_combo.setToolTip("Geometry quality (only for model >= v3.0)")
+        self.quality_combo.setEnabled(False)  # disabled until a v3+ model is selected
+        options_row.addWidget(self.quality_combo)
+        options_row.addSpacing(20)
         options_row.addWidget(QLabel("Timeout (s):"))
         self.timeout_spin = QSpinBox()
         self.timeout_spin.setRange(60, 1800)
@@ -275,6 +288,13 @@ class TripoGUI(QMainWindow):
         layout.addWidget(log_group)
 
         self.statusBar().showMessage("Ready")
+
+    def _on_model_changed(self, text):
+        """Enable quality combo only for v3+ models."""
+        is_v3_plus = text.startswith("v3")
+        self.quality_combo.setEnabled(is_v3_plus)
+        if not is_v3_plus:
+            self.quality_combo.setCurrentIndex(0)  # reset to standard
 
     def _get_api_key(self):
         key = self.api_key_input.text().strip()
@@ -368,30 +388,35 @@ class TripoGUI(QMainWindow):
         self.progress_bar.show()
         self.status_label.show()
 
+        model_ver = self.model_combo.currentText()
+        geo_quality = self.quality_combo.currentText() if self.quality_combo.isEnabled() else "standard"
+
         self.worker_thread = threading.Thread(
             target=self._generate_worker,
-            args=(api_key, mode, payload, output, fmt, timeout),
+            args=(api_key, mode, payload, output, fmt, timeout, model_ver, geo_quality),
             daemon=True,
         )
         self.worker_thread.start()
         self._save_settings()
 
-    def _generate_worker(self, api_key, mode, payload, output, fmt, timeout):
+    def _generate_worker(self, api_key, mode, payload, output, fmt, timeout,
+                         model_version=None, geometry_quality=None):
         try:
             client = TripoClient(api_key)
+            mk = {"model_version": model_version, "geometry_quality": geometry_quality}
 
             def progress_callback(progress, status):
                 self.signals.progress.emit(progress, status)
 
             if mode == "single":
                 self.signals.log.emit("Starting image-to-3D...\n")
-                client.image_to_3d(payload["image"], output, fmt, progress_callback)
+                client.image_to_3d(payload["image"], output, fmt, progress_callback, **mk)
             elif mode == "multiview":
                 self.signals.log.emit(f"Starting multiview-to-3D ({len(payload['images'])} images)...\n")
-                client.multiview_to_3d(payload["images"], output, fmt, progress_callback)
+                client.multiview_to_3d(payload["images"], output, fmt, progress_callback, **mk)
             elif mode == "text":
                 self.signals.log.emit(f"Starting text-to-3D...\n")
-                client.text_to_3d(payload["prompt"], output, fmt, progress_callback)
+                client.text_to_3d(payload["prompt"], output, fmt, progress_callback, **mk)
 
             self.signals.log.emit(f"\n✓ Saved: {output}\n")
             self.signals.finished.emit(True, output)

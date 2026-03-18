@@ -13,7 +13,7 @@ import os
 import sys
 from pathlib import Path
 
-from .client import TripoClient
+from .client import TripoClient, MODEL_VERSIONS, GEOMETRY_QUALITIES
 
 
 def print_progress(progress, status):
@@ -55,6 +55,13 @@ Examples:
     # Options
     parser.add_argument("--api-key", "-k",
                         help="Tripo API key (or set TRIPO_API_KEY env var)")
+    parser.add_argument("--model-version", default="default",
+                        choices=MODEL_VERSIONS,
+                        help="Model version (default: server default)")
+    parser.add_argument("--geometry-quality", default="standard",
+                        choices=GEOMETRY_QUALITIES,
+                        help="Geometry quality — detailed gives max detail "
+                             "(only for model_version >= v3.0-20250812, default: standard)")
     parser.add_argument("--timeout", "-t", type=int, default=600,
                         help="Max wait time in seconds (default: 600)")
     parser.add_argument("--quiet", "-q", action="store_true",
@@ -134,13 +141,19 @@ Examples:
     print(f"[tripo] Output: {output_path}")
     print()
 
+    mv = args.model_version
+    gq = args.geometry_quality
+
     try:
         if args.image:
-            client.image_to_3d(args.image, output_path, args.format, callback)
+            client.image_to_3d(args.image, output_path, args.format, callback,
+                               model_version=mv, geometry_quality=gq)
         elif args.prompt:
-            client.text_to_3d(args.prompt, output_path, args.format, callback)
+            client.text_to_3d(args.prompt, output_path, args.format, callback,
+                              model_version=mv, geometry_quality=gq)
         else:
-            client.multiview_to_3d(args.multiview, output_path, args.format, callback)
+            client.multiview_to_3d(args.multiview, output_path, args.format, callback,
+                                   model_version=mv, geometry_quality=gq)
 
         print(f"\n[tripo] ✓ Done! Saved to {output_path}")
         return 0

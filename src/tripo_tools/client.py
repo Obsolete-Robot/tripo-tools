@@ -16,6 +16,16 @@ TASK_TEXT_TO_MODEL = "text_to_model"
 TASK_MULTIVIEW_TO_MODEL = "multiview_to_model"
 TASK_REFINE_MODEL = "refine_model"
 
+# Available model versions (newest first)
+MODEL_VERSIONS = [
+    "v3.1-20260211",
+    "v3.0-20250812",
+    "default",
+]
+
+# Geometry quality options (only valid for model_version >= v3.0-20250812)
+GEOMETRY_QUALITIES = ["standard", "detailed"]
+
 
 class TripoClient:
     """Client for Tripo's 3D generation API."""
@@ -150,7 +160,17 @@ class TripoClient:
 
     # High-level convenience methods
 
-    def image_to_3d(self, image_path, output_path, fmt="glb", callback=None):
+    @staticmethod
+    def _add_model_params(params, model_version=None, geometry_quality=None):
+        """Add model_version and geometry_quality to task params."""
+        if model_version and model_version != "default":
+            params["model_version"] = model_version
+            # geometry_quality only valid for >= v3.0-20250812
+            if geometry_quality and geometry_quality != "standard":
+                params["geometry_quality"] = geometry_quality
+
+    def image_to_3d(self, image_path, output_path, fmt="glb", callback=None,
+                    model_version=None, geometry_quality=None):
         """
         Full pipeline: image → 3D model.
         
@@ -159,6 +179,8 @@ class TripoClient:
             output_path: Path for output model
             fmt: Output format (glb, fbx, obj, stl, usdz)
             callback: Optional progress callback(progress, status)
+            model_version: Model version (e.g. v3.1-20260211)
+            geometry_quality: Geometry quality (standard or detailed)
         
         Returns:
             Path to downloaded model
@@ -168,11 +190,13 @@ class TripoClient:
         params = {
             "file": {"type": "image_token", "file_token": image_token},
         }
+        self._add_model_params(params, model_version, geometry_quality)
         task_id = self.create_task(TASK_IMAGE_TO_MODEL, params)
         task_data = self.poll_task(task_id, callback=callback)
         return self.download_model(task_data, output_path, fmt)
 
-    def text_to_3d(self, prompt, output_path, fmt="glb", callback=None):
+    def text_to_3d(self, prompt, output_path, fmt="glb", callback=None,
+                   model_version=None, geometry_quality=None):
         """
         Full pipeline: text prompt → 3D model.
         
@@ -181,16 +205,20 @@ class TripoClient:
             output_path: Path for output model
             fmt: Output format
             callback: Optional progress callback(progress, status)
+            model_version: Model version (e.g. v3.1-20260211)
+            geometry_quality: Geometry quality (standard or detailed)
         
         Returns:
             Path to downloaded model
         """
         params = {"prompt": prompt}
+        self._add_model_params(params, model_version, geometry_quality)
         task_id = self.create_task(TASK_TEXT_TO_MODEL, params)
         task_data = self.poll_task(task_id, callback=callback)
         return self.download_model(task_data, output_path, fmt)
 
-    def multiview_to_3d(self, image_paths, output_path, fmt="glb", callback=None):
+    def multiview_to_3d(self, image_paths, output_path, fmt="glb", callback=None,
+                        model_version=None, geometry_quality=None):
         """
         Full pipeline: multiple views → 3D model.
         
@@ -199,6 +227,8 @@ class TripoClient:
             output_path: Path for output model
             fmt: Output format
             callback: Optional progress callback(progress, status)
+            model_version: Model version (e.g. v3.1-20260211)
+            geometry_quality: Geometry quality (standard or detailed)
         
         Returns:
             Path to downloaded model
@@ -208,6 +238,7 @@ class TripoClient:
         params = {
             "files": [{"type": "image_token", "file_token": t} for t in tokens],
         }
+        self._add_model_params(params, model_version, geometry_quality)
         task_id = self.create_task(TASK_MULTIVIEW_TO_MODEL, params)
         task_data = self.poll_task(task_id, callback=callback)
         return self.download_model(task_data, output_path, fmt)
